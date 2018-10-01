@@ -13,8 +13,11 @@ namespace HowTallIsYourWall
     [HelpOption]
     class Program
     {
-        [Option("-T|--threads", Description = "Number of running threads, default to 10. A high value may lead to inaccurate results.")]
-        int RunningTasks { get; } = 10;
+        [Option("-n|--threads", Description = "Number of running threads, default to 8. A high value may lead to inaccurate results.")]
+        int RunningTasks { get; } = 8;
+
+        [Option("-t|--timeout", Description = "Connection timeout in milliseconds, default to 3000.")]
+        int Timeout { get; } = 3000;
 
         [Argument(0, "The domain list file to use.")]
         string DomainListFile { get; }
@@ -68,13 +71,21 @@ namespace HowTallIsYourWall
                 {
                     try
                     {
-                        new TcpClient(domain, 443);
+                        //new TcpClient(domain, 443);
+                        if (!new TcpClient().ConnectAsync(domain, 443).Wait(Timeout))
+                        {
+                            throw new TimeoutException();
+                        }
                     }
                     catch
                     {
                         try
                         {
-                            new TcpClient(domain, 80);
+                            //new TcpClient(domain, 80);
+                            if (!new TcpClient().ConnectAsync(domain, 80).Wait(Timeout))
+                            {
+                                throw new TimeoutException();
+                            }
                         }
                         catch { return (domain, false); }
                     }
@@ -86,8 +97,11 @@ namespace HowTallIsYourWall
                 var (domain, pass) = task.Result;
                 if (pass == true) Passed += 1;
                 else if (pass == false) Failed += 1;
-                if (domain != null) Log(domain, pass.Value);
-                RunTask();
+                if (domain != null)
+                {
+                    Log(domain, pass.Value);
+                    RunTask();
+                }
             });
         }
 
